@@ -5,11 +5,14 @@ use news_site;
 -- SUM
 -- 7
 
-SELECT SUM(sum) AS SUM FROM (
-								SELECT COUNT(*) AS sum FROM news
-                                UNION
-                                SELECT COUNT(*) AS sum FROM reviews  
-								) AS united;  
+SELECT SUM(sum) AS SUM
+FROM (
+       SELECT COUNT(*) AS sum
+       FROM news
+       UNION
+       SELECT COUNT(*) AS sum
+       FROM reviews
+     ) AS united;
 
 -- 2.	Написать запрос, показывающий список категорий новостей и количество новостей в каждой категории.
 -- В результате выполнения запроса должно получиться:
@@ -19,11 +22,14 @@ SELECT SUM(sum) AS SUM FROM (
 -- Логистика 	4
 -- Строительство 	0
 
-SELECT nc_name, COUNT(n_id) FROM news_categories
-		LEFT JOIN news ON news.n_category = news_categories.nc_id
-        GROUP BY nc_name
-        ORDER BY nc_id;
-        
+SELECT
+  nc_name,
+  COUNT(n_id)
+FROM news_categories
+  LEFT JOIN news ON news.n_category = news_categories.nc_id
+GROUP BY nc_name
+ORDER BY nc_id;
+
 
 -- 3.	Написать запрос, показывающий список категорий обзоров и количество обзоров в каждой категории.
 -- В результате выполнения запроса должно получиться:
@@ -31,10 +37,13 @@ SELECT nc_name, COUNT(n_id) FROM news_categories
 -- Технологии 	2
 -- Товары и услуги 	0
 
-SELECT rc_name, COUNT(r_id) FROM reviews_categories
-	LEFT JOIN reviews ON reviews_categories.rc_id=reviews.r_category
-    GROUP BY rc_name
-    ORDER BY rc_id;
+SELECT
+  rc_name,
+  COUNT(r_id)
+FROM reviews_categories
+  LEFT JOIN reviews ON reviews_categories.rc_id = reviews.r_category
+GROUP BY rc_name
+ORDER BY rc_id;
 
 -- 4.	Написать запрос, показывающий список категорий новостей, категорий обзоров и дату самой свежей публикации в каждой категории.
 -- В результате выполнения запроса должно получиться:
@@ -44,16 +53,33 @@ SELECT rc_name, COUNT(r_id) FROM reviews_categories
 -- Логистика 	2012-12-20 06:11:42
 
 
-SELECT category_name, last_date FROM (
-	SELECT rc_name AS category_name, last_date FROM reviews_categories
-    LEFT JOIN (	SELECT r_category, MAX(r_dt) AS last_date FROM reviews GROUP BY r_category	) AS reviews1
-	ON reviews1.r_category = reviews_categories.rc_id
-    UNION
-    SELECT nc_name AS category_name, last_date FROM news_categories
-    LEFT JOIN (	SELECT n_category, MAX(n_dt) AS last_date FROM news GROUP BY n_category	) AS news1
-	ON news1.n_category = news_categories.nc_id
-    ) as united
-    WHERE last_date IS NOT NULL;
+SELECT
+  category_name,
+  last_date
+FROM (
+       SELECT
+         rc_name AS category_name,
+         last_date
+       FROM reviews_categories
+         LEFT JOIN (SELECT
+                      r_category,
+                      MAX(r_dt) AS last_date
+                    FROM reviews
+                    GROUP BY r_category) AS reviews1
+           ON reviews1.r_category = reviews_categories.rc_id
+       UNION
+       SELECT
+         nc_name AS category_name,
+         last_date
+       FROM news_categories
+         LEFT JOIN (SELECT
+                      n_category,
+                      MAX(n_dt) AS last_date
+                    FROM news
+                    GROUP BY n_category) AS news1
+           ON news1.n_category = news_categories.nc_id
+     ) AS united
+WHERE last_date IS NOT NULL;
 
 
 
