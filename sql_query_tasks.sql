@@ -1,4 +1,4 @@
-use news_site;
+USE news_site;
 
 -- 1.	Написать запрос, считающий суммарное количество имеющихся на сайте новостей и обзоров.
 -- В результате выполнения запроса должно получиться:
@@ -29,7 +29,6 @@ FROM news_categories
   LEFT JOIN news ON news.n_category = news_categories.nc_id
 GROUP BY nc_name
 ORDER BY nc_id;
-
 
 -- 3.	Написать запрос, показывающий список категорий обзоров и количество обзоров в каждой категории.
 -- В результате выполнения запроса должно получиться:
@@ -81,8 +80,6 @@ FROM (
      ) AS united
 WHERE last_date IS NOT NULL;
 
-
-
 -- 5.	Написать запрос, показывающий список страниц сайта верхнего уровня (у таких страниц нет родительской страницы) и список баннеров для каждой такой страницы.
 -- В результате выполнения запроса должно получиться:
 -- p_name 	b_id 	b_url
@@ -90,6 +87,17 @@ WHERE last_date IS NOT NULL;
 -- Юридическим лицам 	2 	http://tut.by
 -- Юридическим лицам 	7 	http://habrahabr.ru
 -- Физическим лицам 	1 	http://tut.by
+
+SELECT
+  p_name,
+  m2m_banners_pages.b_id,
+  b_url
+FROM banners
+  JOIN m2m_banners_pages
+    ON m2m_banners_pages.b_id = banners.b_id
+  JOIN pages
+    ON pages.p_id = m2m_banners_pages.p_id
+WHERE p_parent IS NULL;
 
 -- 6.	Написать запрос, показывающий список страниц сайта, на которых есть баннеры.
 -- В результате выполнения запроса должно получиться:
@@ -100,11 +108,22 @@ WHERE last_date IS NOT NULL;
 -- Банковские реквизиты
 -- Схема проезда к офису
 
+SELECT p_name
+FROM pages
+WHERE pages.p_id IN (SELECT m2m_banners_pages.p_id
+                     FROM m2m_banners_pages);
+
 -- 7.	Написать запрос, показывающий список страниц сайта, на которых нет баннеров.
 -- В результате выполнения запроса должно получиться:
 -- p_name
 -- Почта и телефон
 -- Договоры оптовых закупок
+
+SELECT p_name
+FROM pages
+  LEFT JOIN m2m_banners_pages
+    ON pages.p_id = m2m_banners_pages.p_id
+WHERE b_id IS NULL;
 
 -- 8.	Написать запрос, показывающий список баннеров, размещённых хотя бы на одной странице сайта.
 -- В результате выполнения запроса должно получиться:
@@ -115,6 +134,14 @@ WHERE last_date IS NOT NULL;
 -- 4 	http://onliner.by
 -- 3 	http://onliner.by
 
+SELECT DISTINCT
+  banners.b_id,
+  b_url
+FROM banners
+  RIGHT JOIN m2m_banners_pages
+    ON banners.b_id = m2m_banners_pages.b_id AND m2m_banners_pages.p_id IN (SELECT p_id
+                                                                            FROM m2m_banners_pages);
+
 -- 9.	Написать запрос, показывающий список баннеров, не размещённых ни на одной странице сайта.
 -- В результате выполнения запроса должно получиться:
 -- b_id 	b_url
@@ -124,6 +151,14 @@ WHERE last_date IS NOT NULL;
 -- 9 	http://gismeteo.by
 -- 10 	http://gismeteo.ru
 
+SELECT
+  banners.b_id,
+  b_url
+FROM banners
+  LEFT JOIN m2m_banners_pages
+    ON banners.b_id = m2m_banners_pages.b_id
+WHERE p_id IS NULL;
+
 -- 10.	Написать запрос, показывающий баннеры, для которых отношение кликов к показам >= 80% (при условии, что баннер был показан хотя бы один раз).
 -- В результате выполнения запроса должно получиться:
 -- b_id 	b_url 	rate	
@@ -132,7 +167,16 @@ WHERE last_date IS NOT NULL;
 -- 5 	http://google.by 	100.0000	
 -- 6 	http://google.com 	100.0000	
 -- 7 	http://habrahabr.ru 	99.7998	
--- 8 	http://habrahabr.ru 	98.0000	
+-- 8 	http://habrahabr.ru 	98.0000
+
+SELECT
+  b_id,
+  b_url,
+  (b_click / b_show * 100) AS rate
+FROM (SELECT *
+      FROM banners
+      WHERE b_show > 0) AS all_shown
+HAVING rate > 80;
 
 -- 11.	Написать запрос, показывающий список страниц сайта, на которых показаны баннеры с текстом (в поле `b_text` не NULL).
 -- В результате выполнения запроса должно получиться:
