@@ -270,6 +270,12 @@ WHERE nc_name = 'Логистика' AND date_format(n_dt, '%Y') = '2012';
 -- 2011 	2
 -- 2012 	3
 
+SELECT
+  date_format(n_dt, '%Y') AS year,
+  COUNT(*)
+FROM news
+GROUP BY year;
+
 -- 17.	Написать запрос, показывающий URL и id таких баннеров, где для одного и того же URL есть несколько баннеров.
 -- В результате выполнения запроса должно получиться:
 -- b_url 	b_id
@@ -280,12 +286,33 @@ WHERE nc_name = 'Логистика' AND date_format(n_dt, '%Y') = '2012';
 -- http://habrahabr.ru 	7
 -- http://habrahabr.ru 	8
 
+SELECT
+  banners.b_url,
+  banners.b_id
+FROM banners
+  JOIN banners AS banners1
+    ON banners1.b_id <> banners.b_id AND banners1.b_url = banners.b_url
+ORDER BY b_id;
+
 -- 18.	Написать запрос, показывающий список непосредственных подстраниц страницы «Юридическим лицам» со списком баннеров этих подстраниц.
 -- В результате выполнения запроса должно получиться:
 -- p_name 	b_id 	b_url
 -- Образцы договоров 	4 	http://onliner.by
 -- Банковские реквизиты 	1 	http://tut.by
 -- Банковские реквизиты 	2 	http://tut.by
+
+SELECT
+  p_name,
+  banners.b_id,
+  b_url
+FROM (SELECT
+        pages1.p_name,
+        pages1.p_id
+      FROM pages
+        JOIN pages AS pages1 ON pages.p_id = pages1.p_parent
+      WHERE pages.p_name = 'Юридическим лицам') AS pages_selected
+  JOIN m2m_banners_pages ON pages_selected.p_id = m2m_banners_pages.p_id
+  JOIN banners ON m2m_banners_pages.b_id = banners.b_id;
 
 -- 19.	Написать запрос, показывающий список всех баннеров с картинками (поле `b_pic` не NULL), отсортированный по убыванию отношения кликов по баннеру к показам баннера.
 -- В результате выполнения запроса должно получиться:
@@ -294,12 +321,50 @@ WHERE nc_name = 'Логистика' AND date_format(n_dt, '%Y') = '2012';
 -- 5 	http://google.by 	1.0000	
 -- 6 	http://google.com 	1.0000	
 -- 7 	http://habrahabr.ru 	0.9980	
--- 4 	http://onliner.by 	0.0200	
+-- 4 	http://onliner.by 	0.0200
+
+SELECT
+  b_id,
+  b_url,
+  (b_click / b_show) AS rate
+FROM (SELECT *
+      FROM banners
+      WHERE b_show > 0 AND b_pic IS NOT NULL) AS shown_banners
+ORDER BY rate DESC
+
 
 -- 20.	Написать запрос, показывающий самую старую публикацию на сайте (не важно – новость это или обзор).
 -- В результате выполнения запроса должно получиться:
 -- header 	date
 -- Почта России: вчера, сегодня и снова вчера 	2011-08-17 09:06:30
+
+
+SELECT
+  header,
+  dt AS date
+FROM (
+       SELECT
+         n_header AS header,
+         n_dt     AS dt
+       FROM news
+       UNION
+       SELECT
+         r_header AS header,
+         r_dt     AS dt
+       FROM reviews
+     ) AS united
+WHERE dt = (SELECT MIN(dt)
+            FROM (
+                   SELECT
+                     n_header AS header,
+                     n_dt     AS dt
+                   FROM news
+                   UNION
+                   SELECT
+                     r_header AS header,
+                     r_dt     AS dt
+                   FROM reviews
+                 ) AS united1);
 
 -- 21.	Написать запрос, показывающий список баннеров, URL которых встречается в таблице один раз.
 -- В результате выполнения запроса должно получиться:
