@@ -249,7 +249,7 @@ FROM (
        FROM reviews_categories
          LEFT JOIN reviews ON reviews_categories.rc_id = reviews.r_category
        WHERE r_id IS NULL
-     ) AS united
+     ) AS united;
 
 -- 15.	Написать запрос, показывающий список новостей из категории «Логистика» за 2012-й год.
 -- В результате выполнения запроса должно получиться:
@@ -330,7 +330,7 @@ SELECT
 FROM (SELECT *
       FROM banners
       WHERE b_show > 0 AND b_pic IS NOT NULL) AS shown_banners
-ORDER BY rate DESC
+ORDER BY rate DESC;
 
 
 -- 20.	Написать запрос, показывающий самую старую публикацию на сайте (не важно – новость это или обзор).
@@ -365,6 +365,24 @@ WHERE dt = (SELECT MIN(dt)
                      r_dt     AS dt
                    FROM reviews
                  ) AS united1);
+-- ИЛИ
+
+SELECT
+  header,
+  dt AS date
+FROM (
+       SELECT
+         n_header AS header,
+         n_dt     AS dt
+       FROM news
+       UNION
+       SELECT
+         r_header AS header,
+         r_dt     AS dt
+       FROM reviews
+     ) AS united
+ORDER BY date
+LIMIT 1
 
 -- 21.	Написать запрос, показывающий список баннеров, URL которых встречается в таблице один раз.
 -- В результате выполнения запроса должно получиться:
