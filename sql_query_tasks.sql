@@ -186,9 +186,10 @@ HAVING rate > 80;
 -- Банковские реквизиты
 -- Схема проезда к офису
 
-SELECT DISTINCT p_name FROM pages
-LEFT JOIN m2m_banners_pages ON m2m_banners_pages.p_id=pages.p_id
-LEFT JOIN banners ON m2m_banners_pages.b_id = banners.b_id
+SELECT DISTINCT p_name
+FROM pages
+  LEFT JOIN m2m_banners_pages ON m2m_banners_pages.p_id = pages.p_id
+  LEFT JOIN banners ON m2m_banners_pages.b_id = banners.b_id
 WHERE b_text IS NOT NULL;
 
 -- 12.	Написать запрос, показывающий список страниц сайта, на которых показаны баннеры с картинкой (в поле `b_pic` не NULL).
@@ -199,9 +200,13 @@ WHERE b_text IS NOT NULL;
 -- Банковские реквизиты
 -- Схема проезда к офису
 
-SELECT DISTINCT p_name FROM pages
-  LEFT JOIN m2m_banners_pages ON m2m_banners_pages.p_id=pages.p_id
-  JOIN (SELECT * FROM banners WHERE b_pic IS NOT NULL) as banners_with_pics ON m2m_banners_pages.b_id = banners_with_pics.b_id;
+SELECT DISTINCT p_name
+FROM pages
+  LEFT JOIN m2m_banners_pages ON m2m_banners_pages.p_id = pages.p_id
+  JOIN (SELECT *
+        FROM banners
+        WHERE b_pic IS NOT NULL) AS banners_with_pics
+    ON m2m_banners_pages.b_id = banners_with_pics.b_id;
 
 -- 13.	Написать запрос, показывающий список публикаций (новостей и обзоров) за 2011-й год.
 -- В результате выполнения запроса должно получиться:
@@ -210,12 +215,21 @@ SELECT DISTINCT p_name FROM pages
 -- Почта России: вчера, сегодня и снова вчера 	2011-08-17 09:06:30
 -- Роботы на страже строек 	2011-10-03 05:17:37
 
-SELECT header, date FROM (
-  SELECT n_header AS header, n_dt AS date FROM news
-  UNION
-    SELECT r_header AS header, r_dt AS date FROM reviews
-) as united
-WHERE date_format(date, '%Y')='2011';
+SELECT
+  header,
+  date
+FROM (
+       SELECT
+         n_header AS header,
+         n_dt     AS date
+       FROM news
+       UNION
+       SELECT
+         r_header AS header,
+         r_dt     AS date
+       FROM reviews
+     ) AS united
+WHERE date_format(date, '%Y') = '2011';
 
 -- 14.	Написать запрос, показывающий список категорий публикаций (новостей и обзоров), в которых нет публикаций.
 -- В результате выполнения запроса должно получиться:
@@ -224,15 +238,18 @@ WHERE date_format(date, '%Y')='2011';
 -- Строительство
 -- Товары и услуги
 
-SELECT category FROM (
-  SELECT nc_name AS category FROM news_categories
-  LEFT JOIN news ON news_categories.nc_id = news.n_category
-  WHERE n_id IS NULL
-  UNION
-  SELECT rc_name AS category FROM reviews_categories
-    LEFT JOIN reviews ON reviews_categories.rc_id = reviews.r_category
-  WHERE r_id IS NULL
-) AS united
+SELECT category
+FROM (
+       SELECT nc_name AS category
+       FROM news_categories
+         LEFT JOIN news ON news_categories.nc_id = news.n_category
+       WHERE n_id IS NULL
+       UNION
+       SELECT rc_name AS category
+       FROM reviews_categories
+         LEFT JOIN reviews ON reviews_categories.rc_id = reviews.r_category
+       WHERE r_id IS NULL
+     ) AS united
 
 -- 15.	Написать запрос, показывающий список новостей из категории «Логистика» за 2012-й год.
 -- В результате выполнения запроса должно получиться:
@@ -240,9 +257,12 @@ SELECT category FROM (
 -- Самолётом или поездом? 	2012-12-20 06:11:42
 -- Куда всё катится? 	2012-12-11 04:36:17
 
-SELECT n_header, n_dt FROM news
-JOIN news_categories ON news.n_category = news_categories.nc_id
-WHERE nc_name = 'Логистика' AND date_format(n_dt, '%Y')='2012';
+SELECT
+  n_header,
+  n_dt
+FROM news
+  JOIN news_categories ON news.n_category = news_categories.nc_id
+WHERE nc_name = 'Логистика' AND date_format(n_dt, '%Y') = '2012';
 
 -- 16.	Написать запрос, показывающий список годов, за которые есть новости, а также количество новостей за каждый из годов.
 -- В результате выполнения запроса должно получиться:
