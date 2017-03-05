@@ -53,6 +53,25 @@ ORDER BY st_id;
 -- tt_id 	tt_name 	classes_count
 -- 2 	Доцент Петров 	4
 
+SELECT
+  ed_tutor AS tt_id,
+  tt_name,
+  classes_count
+FROM (
+  SELECT
+    ed_tutor,
+    COUNT(1) AS classes_count
+  FROM education
+  WHERE 09 = EXTRACT(MONTH FROM ed_date) AND 2012 = EXTRACT(YEAR FROM ed_date)
+  GROUP BY ED_TUTOR
+  HAVING COUNT(1) = (
+    SELECT MAX(COUNT(1))
+    FROM education
+    WHERE 09 = EXTRACT(MONTH FROM ed_date) AND 2012 = EXTRACT(YEAR FROM ed_date)
+    GROUP BY ED_TUTOR
+  )
+  )
+  JOIN tutors ON ed_tutor = tt_id;
 
 -- 4.	Написать запрос, показывающий список студентов и их средние баллы.
 -- В результате выполнения запроса должно получиться:
@@ -63,6 +82,15 @@ ORDER BY st_id;
 -- 4 	Беркутов Б.Б. 	6.3333
 -- 5 	Филинов Ф.Ф. 	8.0000
 -- 6 	Прогульщиков П.П. 	NULL
+
+SELECT
+  st_id,
+  st_name,
+  AVG(ed_mark)
+FROM education
+  RIGHT JOIN students ON EDUCATION.ED_STUDENT = STUDENTS.ST_ID
+GROUP BY st_id, st_name
+ORDER BY st_id
 
 
 -- 5.	Написать запрос, показывающий список студентов и названия предметов, по которым они получили самые высокие оценки.
@@ -75,6 +103,32 @@ ORDER BY st_id;
 -- 5 	Филинов Ф.Ф. 	Физика 	8
 -- 6 	Прогульщиков П.П. 	NULL	NULL
 
+SELECT
+  t2.st_id,
+  st_name,
+  LISTAGG(convert(sb_name, 'UTF8', 'AL16UTF16'), ',')
+  WITHIN GROUP (
+    ORDER BY sb_name DESC) AS GROUP_CONCAT,
+  ed_mark
+FROM (
+       SELECT DISTINCT
+         t1.ed_student AS st_id,
+         sb_name,
+         ed_mark
+       FROM EDUCATION ed
+         JOIN (
+                SELECT
+                  ed_student,
+                  MAX(ed_mark) AS max_mark
+                FROM education
+                GROUP BY ed_student
+              ) t1 ON t1.ed_student = ed.ed_student AND
+                      t1.max_mark = ed.ed_mark
+         JOIN subjects ON ed.ED_SUBJECT = SUBJECTS.SB_ID
+     ) t2
+  RIGHT JOIN students ON t2.st_id = STUDENTS.ST_ID
+GROUP BY t2.st_id, students.st_name, t2.ed_mark
+ORDER BY st_id;
 
 -- 6.	Написать запрос, показывающий имя преподавателя (преподавателей), поставившего самую низкую оценку студенту Соколову С.С.
 -- В результате выполнения запроса должно получиться:
@@ -82,12 +136,37 @@ ORDER BY st_id;
 -- Профессор Иванов
 -- Доцент Петров
 
+SELECT tt_name
+FROM EDUCATION ed
+  JOIN (
+         SELECT
+           ed_student,
+           MIN(ed_mark) AS max_mark
+         FROM education
+         GROUP BY ed_student
+       ) t1 ON t1.ed_student = ed.ed_student AND
+               t1.max_mark = ed.ed_mark
+  JOIN tutors ON ed.ED_TUTOR = TUTORS.TT_ID
+  JOIN students ON ed.ED_STUDENT = STUDENTS.ST_ID
+WHERE st_name = 'Соколов С.С.';
 
 -- 7.	Написать запрос, проверяющий, не закралась ли в базу ошибка, состоящая в том, что оценка была выставлена по типу занятий, для которого не бывает оценок. Оценки допустимы только для экзаменов и лабораторных работ. Запрос должен возвращать 1 (TRUE), если ошибка есть, и 0 (FALSE), если ошибки нет.
 -- В результате выполнения запроса должно получиться:
 -- answer
 -- 1
 
+SELECT CASE
+       WHEN results > 0
+         THEN 1
+       ELSE 0
+       END
+  AS answer
+FROM
+  (
+    SELECT COUNT(ed_mark) AS results
+    FROM EDUCATION
+    WHERE ED_CLASS_TYPE = 1 AND ED_MARK IS NOT NULL
+  );
 
 -- 8.	Написать запрос, показывающий 2012-й год по месяцам, причём для каждого месяца вывести название предмета (предметов), по которому было проведено больше всего занятий.
 -- В результате выполнения запроса должно получиться:
@@ -100,6 +179,32 @@ ORDER BY st_id;
 -- 201203 	Физика 	1
 -- 201201 	Физика 	1
 
+WITH tmp AS (
+    SELECT
+      to_char(ed_date, 'yyyymm') AS short_date,
+      ed_subject                 AS subjects_list,
+      COUNT(1)                   AS classes
+    FROM education
+    WHERE EXTRACT(YEAR FROM ed_date) = 2012
+    GROUP BY to_char(ed_date, 'yyyymm'), ed_subject
+)
+SELECT
+  tmp.short_date,
+  LISTAGG(convert(sb_name, 'UTF8', 'AL16UTF16'), ',')
+  WITHIN GROUP (
+    ORDER BY sb_name DESC) AS subjects_list,
+  tmp.classes
+FROM tmp
+  JOIN subjects ON tmp.subjects_list = SUBJECTS.SB_ID
+  JOIN (SELECT
+          short_date,
+          MAX(classes) AS classes
+        FROM tmp
+        GROUP BY short_date
+       ) t1
+    ON tmp.short_date = t1.short_date AND tmp.classes = t1.classes
+GROUP BY tmp.short_date, tmp.classes
+ORDER BY tmp.short_date DESC;
 
 -- 9.	Написать запрос, показывающий список студентов, чей средний балл ниже среднего балла по университету.
 -- В результате выполнения запроса должно получиться:
@@ -108,13 +213,44 @@ ORDER BY st_id;
 -- 2 	Соколов С.С. 	7.2000
 -- 3 	Орлов О.О. 	6.5000
 
+SELECT
+  ed_student AS st_id,
+  st_name,
+  avg
+FROM (
+       SELECT
+         ed_student,
+         AVG(ed_mark) AS avg
+       FROM education
+       GROUP BY ed_student
+       HAVING AVG(ed_mark) < (
+         SELECT AVG(ed_mark)
+         FROM education
+       )
+     ) t1
+  JOIN students ON t1.ed_student = students.st_id
+ORDER BY st_id;
 
 -- 10.	Написать запрос, показывающий список студентов, не изучавших химию и физику.
 -- В результате выполнения запроса должно получиться:
 -- st_id	st_name
--- 5 	Филинов Ф.Ф.
+-- 5 	Филинов Ф.Ф. -- был на физике. ed_id=127
 -- 6 	Прогульщиков П.П.
 
+SELECT
+  st_id,
+  st_name
+FROM students
+  LEFT JOIN EDUCATION ON STUDENTS.ST_ID = EDUCATION.ED_STUDENT
+WHERE st_id NOT IN (
+  SELECT DISTINCT ed_student
+  FROM education
+  WHERE ed_subject IN (
+    SELECT sb_id
+    FROM subjects
+    WHERE SB_NAME IN ('Химия', 'Физика')
+  )
+)
 
 -- 11.	Написать запрос, показывающий список студентов, ни разу не получавших 10-ки.
 -- В результате выполнения запроса должно получиться:
