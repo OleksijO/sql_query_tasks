@@ -508,13 +508,15 @@ FROM (
 -- Филинов Ф.Ф. 	8
 -- Орлов О.О. 	7
 
-SELECT DISTINCT
+SELECT /*+ gather_plan_statistics */ DISTINCT
   st_name,
   MAX(ed_mark)
   OVER (PARTITION BY st_name) AS max
 FROM students
   JOIN education ON STUDENTS.ST_ID = EDUCATION.ED_STUDENT
 ORDER BY max DESC;
+SELECT *
+FROM TABLE (dbms_xplan.display_cursor(NULL, NULL, 'ALLSTATS LAST'));
 
 -- 21.	Написать запрос, показывающий студента (студентов) получивших максимальное количество баллов ниже 5.
 -- В результате выполнения запроса должно получиться:
