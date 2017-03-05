@@ -259,6 +259,17 @@ WHERE st_id NOT IN (
 -- 5 	Филинов Ф.Ф.
 -- 6 	Прогульщиков П.П.
 
+SELECT DISTINCT
+  st_id,
+  st_name
+FROM students
+  LEFT JOIN EDUCATION ON STUDENTS.ST_ID = EDUCATION.ED_STUDENT
+WHERE st_id NOT IN (
+  SELECT ed_student
+  FROM education
+  WHERE ed_mark = 10
+)
+ORDER BY st_id;
 
 -- 12.	Написать запрос, показывающий список предметов, успеваемость студентов по которым выше средней успеваемости по всем предметам в университете.
 -- В результате выполнения запроса должно получиться:
@@ -266,6 +277,44 @@ WHERE st_id NOT IN (
 -- 2 	Химия 	7.5000
 -- 5 	Английский язык 	10.0000
 
+SELECT
+  /*+ gather_plan_statistics */
+  sb_id,
+  sb_name,
+  avg
+FROM
+  (SELECT DISTINCT
+     ed_subject,
+     AVG(ed_mark)
+     OVER (PARTITION BY ed_subject) AS avg,
+     AVG(ed_mark)
+     OVER ()                        AS avg_sum
+   FROM education
+  ) t1
+  JOIN subjects ON sb_id = ed_subject
+WHERE t1.avg > t1.avg_sum
+ORDER BY sb_id;
+SELECT *
+FROM TABLE (dbms_xplan.display_cursor(NULL, NULL, 'ALLSTATS LAST'));
+----------- ИЛИ
+SELECT
+  /*+ gather_plan_statistics */
+  sb_id,
+  sb_name,
+  avg
+FROM
+  (SELECT
+     ed_subject,
+     AVG(ed_mark) AS avg
+   FROM education
+   GROUP BY ed_subject
+   HAVING AVG(ed_mark) > (SELECT AVG(ed_mark)
+                          FROM education)
+  ) t1
+  JOIN subjects ON sb_id = ed_subject
+ORDER BY sb_id;
+SELECT *
+FROM TABLE (dbms_xplan.display_cursor(NULL, NULL, 'ALLSTATS LAST'));
 
 -- 13.	Написать запрос, показывающий, сколько в среднем раз в месяц проходят занятия по каждому предмету. Периодом проведения занятий считать весь диапазон дат от первого до последнего зарегистрированного занятия по каждому предмету в отдельности.
 -- В результате выполнения запроса должно получиться:
@@ -276,6 +325,19 @@ WHERE st_id NOT IN (
 -- 4 	Математика 	2.0000
 -- 5 	Английский язык 	0.8571
 
+SELECT
+  sb_id,
+  sb_name,
+  to_char(classes_per_month, 'FM99999999999999990.0000') AS classes_per_month
+FROM
+  (SELECT
+     ed_subject,
+     count(ed_subject) / MONTHS_BETWEEN(MAX(ed_date), MIN(ed_date)) AS classes_per_month
+   FROM education
+   GROUP BY ed_subject
+  ) t1
+  JOIN subjects ON t1.ED_SUBJECT = SUBJECTS.SB_ID
+ORDER BY sb_id;
 
 -- 14.	Написать запрос, показывающий список студентов в порядке убывания среднего балла по предметам, по которым они ещё не сдавали экзамен.
 -- В результате выполнения запроса должно получиться:
@@ -285,6 +347,30 @@ WHERE st_id NOT IN (
 -- 1 	Воробьёв В.В. 	1 	Программирование 	4.0000
 -- 3 	Орлов О.О. 	1 	Программирование 	NULL
 
+SELECT
+  st_id,
+  st_name,
+  sb_id,
+  sb_name,
+  to_char(avg, 'FM99999999999999990.0000') AS avg
+FROM
+  (SELECT
+     ed_subject,
+     ed_student,
+     AVG(ed_mark) AS avg
+   FROM EDUCATION
+   WHERE (ed_student, ed_subject) NOT IN (
+     SELECT DISTINCT
+       ed_student,
+       ed_subject
+     FROM EDUCATION
+     WHERE ED_CLASS_TYPE = 2
+   )
+   GROUP BY ed_subject,
+     ed_student) t1
+  JOIN students ON st_id = t1.ED_STUDENT
+  JOIN subjects ON sb_id = t1.ed_subject
+ORDER BY avg DESC NULLS LAST
 
 -- 15.	Написать запрос, показывающий список преподавателей и количество проведённых каждым преподавателем занятий.
 -- В результате выполнения запроса должно получиться:
@@ -294,6 +380,14 @@ WHERE st_id NOT IN (
 -- 3 	Ассистент Сидоров 	6
 -- 4 	Ассистент Неизвестный 	0
 
+SELECT
+  tt_id,
+  tt_name,
+  count(ed_subject) AS classes
+FROM education
+  RIGHT JOIN tutors ON EDUCATION.ED_TUTOR = TUTORS.TT_ID
+GROUP BY tt_id, tt_name
+ORDER BY classes DESC
 
 -- 16.	Написать запрос, показывающий имя преподавателя (преподавателей), не поставившего ни одной оценки.
 -- В результате выполнения запроса должно получиться:
