@@ -370,7 +370,7 @@ FROM
      ed_student) t1
   JOIN students ON st_id = t1.ED_STUDENT
   JOIN subjects ON sb_id = t1.ed_subject
-ORDER BY avg DESC NULLS LAST
+ORDER BY avg DESC NULLS LAST;
 
 -- 15.	Написать запрос, показывающий список преподавателей и количество проведённых каждым преподавателем занятий.
 -- В результате выполнения запроса должно получиться:
@@ -387,13 +387,26 @@ SELECT
 FROM education
   RIGHT JOIN tutors ON EDUCATION.ED_TUTOR = TUTORS.TT_ID
 GROUP BY tt_id, tt_name
-ORDER BY classes DESC
+ORDER BY classes DESC;
 
 -- 16.	Написать запрос, показывающий имя преподавателя (преподавателей), не поставившего ни одной оценки.
 -- В результате выполнения запроса должно получиться:
 -- tt_id	tt_name
 -- 4 	Ассистент Неизвестный
 
+SELECT DISTINCT
+  tt_id,
+  tt_name
+FROM (
+  SELECT DISTINCT
+    tt_id,
+    tt_name,
+    count(ed_mark)
+    OVER (PARTITION BY tt_id) AS mark_count
+  FROM tutors
+    LEFT JOIN EDUCATION ON TUTORS.TT_ID = EDUCATION.ED_TUTOR
+)
+WHERE mark_count = 0;
 
 -- 17.	Написать запрос, показывающий список преподавателей и количества поставленных ими оценок в порядке убывания этого количества.
 -- В результате выполнения запроса должно получиться:
@@ -403,6 +416,14 @@ ORDER BY classes DESC
 -- 3 	Ассистент Сидоров 	3
 -- 4 	Ассистент Неизвестный 	0
 
+SELECT DISTINCT
+  tt_id,
+  tt_name,
+  count(ed_mark)
+  OVER (PARTITION BY tt_id) AS mark_count
+FROM tutors
+  LEFT JOIN EDUCATION ON TUTORS.TT_ID = EDUCATION.ED_TUTOR
+ORDER BY mark_count DESC
 
 -- 18.	Написать запрос, показывающий список предметов и средних баллов каждого студента по каждому предмету в порядке убывания среднего балла.
 -- В результате выполнения запроса должно получиться:
@@ -424,6 +445,21 @@ ORDER BY classes DESC
 -- Химия 	Воробьёв В.В. 	8.0000
 -- Химия 	Соколов С.С. 	4.0000
 
+SELECT
+  sb_name,
+  st_name,
+  to_char(avg, 'FM99999999999999990.0000') AS avg
+FROM (
+  SELECT DISTINCT
+    sb_name,
+    st_name,
+    AVG(ed_mark)
+    OVER (PARTITION BY sb_name, st_name) AS avg
+  FROM EDUCATION
+    LEFT JOIN students ON EDUCATION.ED_STUDENT = STUDENTS.ST_ID
+    LEFT JOIN subjects ON EDUCATION.ED_SUBJECT = SUBJECTS.SB_ID
+  ORDER BY sb_name ASC, avg DESC NULLS LAST
+);
 
 -- 19.	Написать запрос, показывающий средний балл каждого студента по каждому месяцу обучения.
 -- В результате выполнения запроса должно получиться:
@@ -448,6 +484,20 @@ ORDER BY classes DESC
 -- Соколов С.С. 	201004 	NULL
 -- Филинов Ф.Ф. 	201210 	8.0000
 
+SELECT
+  st_name,
+  short_date,
+  to_char(avg, 'FM99999999999999990.0000') AS avg
+FROM (
+  SELECT DISTINCT
+    st_name,
+    to_char(ed_date, 'yyyymm')                              AS short_date,
+    AVG(ed_mark)
+    OVER (PARTITION BY st_name, to_char(ed_date, 'yyyymm')) AS avg
+  FROM EDUCATION
+    LEFT JOIN students ON EDUCATION.ED_STUDENT = STUDENTS.ST_ID
+  ORDER BY st_name ASC, avg DESC NULLS LAST
+);
 
 -- 20.	Написать запрос, показывающий список студентов и максимальный балл, когда либо полученный данным студентом.
 -- В результате выполнения запроса должно получиться:
@@ -458,6 +508,13 @@ ORDER BY classes DESC
 -- Филинов Ф.Ф. 	8
 -- Орлов О.О. 	7
 
+SELECT DISTINCT
+  st_name,
+  MAX(ed_mark)
+  OVER (PARTITION BY st_name) AS max
+FROM students
+  JOIN education ON STUDENTS.ST_ID = EDUCATION.ED_STUDENT
+ORDER BY max DESC;
 
 -- 21.	Написать запрос, показывающий студента (студентов) получивших максимальное количество баллов ниже 5.
 -- В результате выполнения запроса должно получиться:
